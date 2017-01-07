@@ -9,6 +9,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 
 
 class TodoController extends Controller
@@ -33,13 +34,35 @@ class TodoController extends Controller
                 ->add('category', TextType::class, array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
                 ->add('description', TextareaType::class, array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
                 ->add('priority', ChoiceType::class, array('choices'=> array('low'=>'low','normal'=>'normal', 'high'=>'high')),array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
-                ->add('due_date', DateTimeType::class, array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
+                ->add('due_date', DateTimeType::class, array('attr'=> array('class'=>'formcontrol', 'style' => 'margin-bottom:15px')))
+                ->add('save', SubmitType::class, array('label'=>'Create Now', 'attr'=> array('class'=>'btn btn-primary', 'style' => 'margin-bottom:15px')))
                 ->getForm();
         
         $form->handleRequest($request);
         
         if($form->isSubmitted() && $form->isValid()){
-         die('Submitted');   
+         $name = $form['name']->getData();
+         $category = $form['category']->getData();
+         $description = $form['description']->getData();
+         $priority = $form['priority']->getData();
+         $due_date = $form['due_date']->getData();
+         $now = new\DateTime('now');
+         
+         //dump it into the database now
+         $todo->setName($name);
+         $todo->setCategory($category);
+         $todo->setDescription($description);
+         $todo->setPriority($priority);
+         $todo->setDueDate($due_date);
+         $todo->setCreateDate($now);
+         
+         $em = $this->getDoctrine()->getManager();
+         $em->persist($todo);
+         $em->flush();
+         
+         $this->addFlash('notice', 'Todo added');
+         
+         return $this->redirectToRoute('todo_list');
         }
         // replace this example code with whatever you need
         return $this->render('todo/create.html.twig', array('form'=>$form->createView()));
@@ -47,19 +70,85 @@ class TodoController extends Controller
         /**
      * @Route("/todo/edit/{id}", name="todo_edit")
      */
-    public function editAction(Request $request)
+    public function editAction($id, Request $request)
     {
         
-        // replace this example code with whatever you need
-        return $this->render('todo/edit.html.twig');
+        $todo = $this->getDoctrine()->getRepository('AppBundle:Todo')->find($id);
+        
+        $now = new\DateTime('now');
+        
+         //show what is to edit
+         $todo->setName($todo->getName());
+         $todo->setCategory($todo->getCategory());
+         $todo->setDescription($todo->getDescription());
+         $todo->setPriority($todo->getPriority());
+         $todo->setDueDate($todo->getDueDate());
+         $todo->setCreateDate($now);
+        
+        $form = $this->createFormBuilder($todo)
+                ->add('name', TextType::class, array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
+                ->add('category', TextType::class, array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
+                ->add('description', TextareaType::class, array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
+                ->add('priority', ChoiceType::class, array('choices'=> array('low'=>'low','normal'=>'normal', 'high'=>'high')),array('attr'=> array('class'=>'form-control', 'style' => 'margin-bottom:15px')))
+                ->add('due_date', DateTimeType::class, array('attr'=> array('class'=>'formcontrol', 'style' => 'margin-bottom:15px')))
+                ->add('save', SubmitType::class, array('label'=>'Update Now', 'attr'=> array('class'=>'btn btn-primary', 'style' => 'margin-bottom:15px')))
+                ->getForm();
+        
+        $form->handleRequest($request);
+        
+        
+        if($form->isSubmitted() && $form->isValid()){
+         $name = $form['name']->getData();
+         $category = $form['category']->getData();
+         $description = $form['description']->getData();
+         $priority = $form['priority']->getData();
+         $due_date = $form['due_date']->getData();
+         $now = new\DateTime('now');
+         
+         $em = $this->getDoctrine()->getManager();
+         $todo = $em->getRepository('AppBundle:Todo')->find($id);
+         
+         //update the database now
+         $todo->setName($name);
+         $todo->setCategory($category);
+         $todo->setDescription($description);
+         $todo->setPriority($priority);
+         $todo->setDueDate($due_date);
+         $todo->setCreateDate($now);
+         
+         $em->flush();
+         
+         $this->addFlash('notice', 'Todo updated');
+         
+         return $this->redirectToRoute('todo_list');
+        }
+        
+        return $this->render('todo/edit.html.twig', array('todo' => $todo, 'form'=>$form->createView()));
+        
     }
         /**
      * @Route("/todo/details/{id}", name="todo_details")
      */
-    public function detailsAction(Request $request)
+    public function detailsAction($id)
     {
-        //die('TODOS');
-        // replace this example code with whatever you need
-        return $this->render('todo/details.html.twig');
+    
+        $todo = $this->getDoctrine()->getRepository('AppBundle:Todo')->find($id);
+        return $this->render('todo/details.html.twig', array('todo' => $todo));
+        
+    }
+    
+            /**
+     * @Route("/todo/delete/{id}", name="todo_delete")
+     */
+    public function deleteAction($id)
+    {
+         $em = $this->getDoctrine()->getManager();
+         $todo = $em->getRepository('AppBundle:Todo')->find($id);
+         $em->remove($todo);
+         $em->flush();
+         
+         $this->addFlash('notice', 'Todo removed');
+         
+         return $this->redirectToRoute('todo_list');
     }
 }
